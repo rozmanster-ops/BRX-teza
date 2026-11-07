@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>BRX-teža</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BRX-teža">
+<style>
+:root{color-scheme:dark}body{background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;padding:20px}.container{max-width:500px;margin:auto}.card{background:#1c1c1e;border-radius:20px;padding:20px;margin-bottom:15px}h1{text-align:center}h3{margin-top:0}label{display:block;margin:12px 0 5px}input{width:100%;padding:12px;border:0;border-radius:12px;font-size:16px;box-sizing:border-box;background:#fff;color:#111}.tabs{display:flex;background:#2c2c2e;border-radius:14px;padding:4px;margin-bottom:15px}.tab{flex:1;padding:11px 6px;border:0;border-radius:11px;background:transparent;color:#aaa;font-weight:700}.tab.active{background:#ff9500;color:#fff}button.calc{width:100%;padding:15px;border:0;border-radius:15px;background:#ff9500;color:#fff;font-size:18px;font-weight:800;cursor:pointer;margin-top:18px}.result{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:12px 2px;border-bottom:1px solid #333;align-items:center}.result span:nth-child(2){text-align:center;color:#ff9500;font-weight:800}.result span:last-child{text-align:right;font-weight:800}.muted{color:#999;font-size:13px}.history-item{padding:10px;margin:8px 0;border-radius:10px;background:#2c2c2e}.check{display:flex;align-items:center;gap:8px}.check input{width:auto}.hidden{display:none}.error{color:#ff453a;margin-top:12px}
+</style></head>
+<body><div class="container"><h1>BRX-teža</h1>
+<div class="tabs"><button class="tab active" id="normalTab" type="button">OBIČAJNO</button><button class="tab" id="progTab" type="button">PROGRESIJA SETOV</button><button class="tab" id="liftsTab" type="button">MOJI LIFTI</button></div>
+<div class="card" id="calcCard">
+<label>Maksimum / 1RM (kg)</label><input id="max" type="number" step="0.5" value="100">
+<div id="normalFields"><label>Korak (%)</label><input id="step" type="number" step="0.1" value="5"></div>
+<label>Od (%)</label><input id="from" type="number" step="0.1" value="60">
+<label>Do (%)</label><input id="to" type="number" step="0.1" value="75">
+<div id="progFields" class="hidden"><label>Število setov / krogov</label><input id="sets" type="number" min="2" step="1" value="4"><div class="muted">Začetni in končni odstotek sta vključena.</div></div>
+<label class="check"><input type="checkbox" id="round" checked> Zaokroži na 2,5 kg</label>
+<button class="calc" id="calc" type="button">IZRAČUNAJ</button><div id="error" class="error"></div>
+</div>
+<div class="card hidden" id="liftsCard"><h3>Moji lifti</h3><div class="muted">1RM se shrani lokalno v tej napravi.</div><div id="liftsList"></div><label>Dodaj svojo vajo</label><input id="newLiftName" type="text" placeholder="npr. Power Clean"><label>1RM (kg)</label><input id="newLiftValue" type="number" step="0.5" placeholder="0"><button class="calc" id="addLift" type="button">DODAJ VAJO</button></div>
+<div class="card"><h3 id="resultTitle">Rezultati</h3><div id="results"></div></div>
+<div class="card"><h3>Zadnjih 10 izračunov</h3><div id="history"></div></div>
+</div>
+<script>
+(()=>{const $=id=>document.getElementById(id);let mode='normal';let historyList=[];let lifts=[];try{lifts=JSON.parse(localStorage.getItem('brxLifts')||'[]')}catch(e){} if(!lifts.length) lifts=[['Snatch',0],['Clean & Jerk',0],['Back Squat',150],['Front Squat',0],['Deadlift',170],['Bench Press',105],['Strict Press',63]];try{historyList=JSON.parse(localStorage.getItem('brxHistory')||'[]')}catch(e){}
+function num(id){return parseFloat($(id).value)} function fmt(n){return Number(n.toFixed(2)).toString().replace('.',',')} function weight(max,p){let w=max*p/100;return $('round').checked?Math.round(w/2.5)*2.5:w}
+function setMode(m){mode=m;const isLifts=m==='lifts';$('calcCard').classList.toggle('hidden',isLifts);$('liftsCard').classList.toggle('hidden',!isLifts);$('normalFields').classList.toggle('hidden',m!=='normal');$('progFields').classList.toggle('hidden',m!=='progression');$('normalTab').classList.toggle('active',m==='normal');$('progTab').classList.toggle('active',m==='progression');$('liftsTab').classList.toggle('active',isLifts);$('resultTitle').parentElement.classList.toggle('hidden',isLifts);$('resultTitle').textContent=m==='progression'?'Progresija setov':'Rezultati';$('results').innerHTML='';$('error').textContent='';if(isLifts)renderLifts()}
+function saveLifts(){localStorage.setItem('brxLifts',JSON.stringify(lifts))}
+function renderLifts(){$('liftsList').innerHTML=lifts.map((l,i)=>`<div class="result"><span>${l[0]}</span><span><input aria-label="${l[0]} 1RM" data-i="${i}" class="liftVal" type="number" step="0.5" value="${l[1]||''}" placeholder="1RM"></span><span><button type="button" class="useLift" data-i="${i}" style="background:#ff9500;color:white;border:0;border-radius:9px;padding:9px">UPORABI</button></span></div>`).join('');document.querySelectorAll('.liftVal').forEach(x=>x.addEventListener('change',e=>{let i=+e.target.dataset.i; lifts[i][1]=parseFloat(e.target.value)||0;saveLifts()}));document.querySelectorAll('.useLift').forEach(x=>x.addEventListener('click',e=>{let l=lifts[+e.target.dataset.i];if(l[1]>0){$('max').value=l[1];setMode('progression')}}))}
+function addLift(){let n=$('newLiftName').value.trim(),v=parseFloat($('newLiftValue').value)||0;if(!n)return;lifts.push([n,v]);saveLifts();$('newLiftName').value='';$('newLiftValue').value='';renderLifts()}
+function calculate(){const max=num('max'),from=num('from'),to=num('to');$('error').textContent='';if(!(max>0)||!isFinite(from)||!isFinite(to)||from<0||to<from){$('error').textContent='Preveri 1RM in razpon odstotkov.';return}let rows=[];
+if(mode==='progression'){const sets=parseInt($('sets').value,10);if(!Number.isInteger(sets)||sets<2||sets>100){$('error').textContent='Število setov naj bo med 2 in 100.';return}const inc=(to-from)/(sets-1);for(let i=0;i<sets;i++){const p=i===sets-1?to:from+i*inc;rows.push({label:`SET ${i+1}`,p,w:weight(max,p)})}}
+else{const step=num('step');if(!(step>0)){$('error').textContent='Korak mora biti večji od 0.';return}for(let p=from;p<=to+1e-9;p+=step)rows.push({label:'',p:Math.min(p,to),w:weight(max,Math.min(p,to))})}
+$('results').innerHTML=rows.map(r=>`<div class="result"><span>${r.label}</span><span>${fmt(r.p)} %</span><span>${fmt(r.w)} kg</span></div>`).join('');const item={mode,max,from,to,sets:mode==='progression'?parseInt($('sets').value):null,step:mode==='normal'?num('step'):null,round:$('round').checked};historyList.unshift(item);historyList=historyList.slice(0,10);localStorage.setItem('brxHistory',JSON.stringify(historyList));renderHistory()}
+function renderHistory(){$('history').innerHTML=historyList.map(h=>`<div class="history-item">${h.mode==='progression'?`Progresija: ${h.sets} seti`:`Običajno: korak ${fmt(h.step)} %`} · 1RM ${fmt(h.max)} kg · ${fmt(h.from)}–${fmt(h.to)} %</div>`).join('')||'<div class="muted">Še ni izračunov.</div>'}
+$('normalTab').addEventListener('click',()=>setMode('normal'));$('progTab').addEventListener('click',()=>setMode('progression'));$('liftsTab').addEventListener('click',()=>setMode('lifts'));$('addLift').addEventListener('click',addLift);$('calc').addEventListener('click',calculate);renderHistory();})();
+</script><script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));}</script></body></html>
